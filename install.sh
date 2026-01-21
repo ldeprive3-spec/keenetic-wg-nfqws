@@ -3,7 +3,7 @@
 # ============================================================================
 # Keenetic WireGuard + NFQWS Installer
 # ============================================================================
-# Установка NFQWS для обфускации WireGuard handshake пакетов
+# Полностью автоматическая установка NFQWS для обфускации WireGuard
 # ============================================================================
 
 set -e
@@ -112,54 +112,31 @@ install_nfqws() {
 }
 
 configure_nfqws() {
-    log_info "Конфигурация NFQWS..."
+    log_info "Конфигурация NFQWS (автоматическая)..."
 
-    # Создание каталога конфигурации
+    # Создание каталогов
     mkdir -p /opt/etc/nfqws
     mkdir -p /opt/var/log
 
-    # Создание конфига для WireGuard handshake обфускации
+    # Создание конфига с рекомендуемыми параметрами (средние параметры)
     cat > /opt/etc/nfqws/nfqws.conf << 'EOF'
 # ============================================================================
-# NFQWS - WireGuard Handshake Obfuscation Configuration
+# NFQWS Configuration - Medium Obfuscation (Recommended)
 # ============================================================================
-# Обфускация WireGuard handshake пакетов для обхода DPI блокировок
-# Работает с конфигами WARP от warpgen.net
 
-# Режимы обфускации:
-# - fake: отправка поддельного пакета
-# - split2: разделение пакета на 2 части
-# - split3: разделение на 3 части
-# - disorder: беспорядок пакетов
 --dpi-desync=fake,split2
-
-# Количество повторений обфускации (1-8)
-# 4 = оптимальный баланс между надежностью и скоростью
 --dpi-desync-repeats=4
-
-# TTL для поддельных пакетов
-# Поддельные пакеты не должны доходить до целевого сервера
 --dpi-desync-ttl=3
-
-# Маскировка:
-# - badsum: неправильная контрольная сумма
-# - badseq: неправильный номер последовательности
 --dpi-desync-fooling=badsum
-
-# ВАЖНО: Раскомментируйте для обфускации только WireGuard портов
-# Порт по умолчанию в WARP конфигах - 51820 (может отличаться)
-# --dpi-desync-udp=51820
-
 EOF
 
-    log_success "Конфиг NFQWS создан: /opt/etc/nfqws/nfqws.conf"
+    log_success "Конфиг NFQWS создан с рекомендуемыми параметрами"
     chmod 644 /opt/etc/nfqws/nfqws.conf
 }
 
 setup_autostart() {
     log_info "Настройка автозагрузки NFQWS..."
 
-    # NFQWS уже должен быть в /opt/etc/init.d (установлено через opkg)
     if [ -f /opt/etc/init.d/S51nfqws ]; then
         log_success "Скрипт автозагрузки найден"
         chmod 755 /opt/etc/init.d/S51nfqws
@@ -180,7 +157,6 @@ start_nfqws() {
             log_success "NFQWS работает (процесс найден)"
         else
             log_error "NFQWS не запустился"
-            log_info "Проверьте логи: tail -20 /opt/var/log/nfqws.log"
         fi
     else
         log_error "Ошибка при запуске NFQWS"
@@ -194,66 +170,47 @@ print_next_steps() {
     echo "${BLUE}║${NC}                   УСТАНОВКА ЗАВЕРШЕНА ✓                      ${BLUE}║${NC}"
     echo "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "${GREEN}1. Следующие шаги:${NC}"
+    echo "${GREEN}✓ NFQWS установлен и работает${NC}"
     echo ""
-    echo "   ${YELLOW}a) Создайте WireGuard конфиг WARP:${NC}"
-    echo "      - Откройте: https://warpgen.net"
-    echo "      - Выберите: AmneziaVPN (для AWG 1.5) или WireGuard"
-    echo "      - Нажмите: Generate"
-    echo "      - Скопируйте конфиг"
+    echo "${GREEN}Теперь нужно:${NC}"
     echo ""
-    echo "   ${YELLOW}b) Загрузите конфиг в Keenetic:${NC}"
-    echo "      ssh admin@192.168.1.1"
-    echo "      nano /opt/etc/wireguard/warp.conf"
-    echo "      # Вставьте конфиг и сохраните"
+    echo "  ${YELLOW}1. Создайте WireGuard конфиг WARP:${NC}"
+    echo "     - Откройте: https://warpgen.net"
+    echo "     - Выберите: WireGuard или AmneziaVPN"
+    echo "     - Нажмите: Generate"
+    echo "     - Скопируйте конфиг"
     echo ""
-    echo "   ${YELLOW}c) Включите WireGuard:${NC}"
-    echo "      - Интернет → Другие подключения → WireGuard"
-    echo "      - Переведите в состояние: Включено"
-    echo "      - Через 3-5 сек должна появиться зелёная точка"
+    echo "  ${YELLOW}2. Загрузите конфиг в Keenetic:${NC}"
+    echo "     ssh admin@192.168.1.1"
+    echo "     nano /opt/etc/wireguard/warp.conf"
+    echo "     # Вставьте конфиг (Ctrl+X → Y → Enter)"
     echo ""
-    echo "   ${YELLOW}d) Проверьте подключение:${NC}"
-    echo "      ssh admin@192.168.1.1"
-    echo "      show interface Wireguard0"
-    echo "      # Должен быть Up с увеличивающимся трафиком RX/TX"
+    echo "  ${YELLOW}3. Включите WireGuard в веб-интерфейсе:${NC}"
+    echo "     Интернет → Другие подключения → WireGuard"
+    echo "     → Переведите в состояние: Включено"
     echo ""
-    echo "${GREEN}2. Управление NFQWS:${NC}"
+    echo "  ${YELLOW}4. Проверьте подключение:${NC}"
+    echo "     ssh admin@192.168.1.1"
+    echo "     show interface Wireguard0"
+    echo "     # Должен быть Up с трафиком RX/TX"
     echo ""
-    echo "   # Статус"
-    echo "   /opt/etc/init.d/S51nfqws status"
+    echo "${GREEN}Управление конфигурацией:${NC}"
     echo ""
-    echo "   # Управление"
-    echo "   /opt/etc/init.d/S51nfqws start|stop|restart"
+    echo "  # Интерактивное меню"
+    echo "  nfqws-config.sh"
     echo ""
-    echo "   # Логи (для отладки)"
-    echo "   tail -f /opt/var/log/nfqws.log"
+    echo "  # Или команды напрямую:"
+    echo "  nfqws-config.sh weak         # Слабая обфускация"
+    echo "  nfqws-config.sh medium       # Средняя обфускация (текущая)"
+    echo "  nfqws-config.sh aggressive   # Агрессивная обфускация"
+    echo "  nfqws-config.sh status       # Статус NFQWS"
+    echo "  nfqws-config.sh logs         # Логи"
     echo ""
-    echo "   # Текущие параметры"
-    echo "   cat /opt/etc/nfqws/nfqws.conf"
+    echo "${GREEN}Проверка работы:${NC}"
     echo ""
-    echo "${GREEN}3. Проверка работы:${NC}"
-    echo ""
-    echo "   # На маршрутизаторе:"
-    echo "   show interface Wireguard0      # Должен быть статус Up"
-    echo "   ps | grep nfqws                # Должен быть процесс NFQWS"
-    echo ""
-    echo "   # На любом устройстве в сети:"
-    echo "   - https://whatismyipaddress.com (должен быть Cloudflare IP)"
-    echo "   - https://dnsleaktest.com (должен быть Cloudflare DNS)"
-    echo "   - https://speedtest.net (скорость должна быть близко к норме)"
-    echo ""
-    echo "${YELLOW}4. Если WireGuard отключается:${NC}"
-    echo ""
-    echo "   # Проверьте что NFQWS работает:"
-    echo "   ps | grep nfqws"
-    echo ""
-    echo "   # Увеличьте параметры обфускации:"
-    echo "   nano /opt/etc/nfqws/nfqws.conf"
-    echo "   # Измените repeats с 4 на 8 и добавьте disorder"
-    echo "   /opt/etc/init.d/S51nfqws restart"
-    echo ""
-    echo "   # Получите новый конфиг WARP:"
-    echo "   # warpgen.net регулярно меняет endpoints"
+    echo "  https://whatismyipaddress.com     (IP должен быть Cloudflare)"
+    echo "  https://dnsleaktest.com           (DNS должен быть Cloudflare)"
+    echo "  https://speedtest.net             (скорость близко к норме)"
     echo ""
 }
 
@@ -263,8 +220,8 @@ print_next_steps() {
 
 main() {
     echo "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
-    echo "${BLUE}║${NC}    Keenetic WireGuard + NFQWS DPI Bypass Installer            ${BLUE}║${NC}"
-    echo "${BLUE}║${NC}                       v2.3 (2026-01-21)                      ${BLUE}║${NC}"
+    echo "${BLUE}║${NC}  Keenetic WireGuard + NFQWS DPI Bypass - Автоматическая     ${BLUE}║${NC}"
+    echo "${BLUE}║${NC}  установка                             v2.3 (2026-01-21)  ${BLUE}║${NC}"
     echo "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 

@@ -68,7 +68,7 @@ show_menu() {
     echo "${GREEN}5.${NC} Средняя обфускация (рекомендуется)"
     echo "${GREEN}6.${NC} Агрессивная обфускация (максимальная защита)"
     echo ""
-    echo "${GREEN}7.${NC} Ручное редактирование конфига"
+    echo "${GREEN}7.${NC} Ручное редактирование конфига (для опытных)"
     echo "${GREEN}8.${NC} Перезагрузка NFQWS"
     echo ""
     echo "${GREEN}0.${NC} Выход"
@@ -88,7 +88,7 @@ show_logs() {
     if [ -f "$LOG_FILE" ]; then
         tail -30 "$LOG_FILE" | sed 's/^/  /'
     else
-        log_warn "Логи еще не созданы (NFQWS не запускался с логированием)"
+        log_warn "Логи еще не созданы (NFQWS запускался без логирования)"
     fi
     echo ""
 }
@@ -140,13 +140,11 @@ apply_weak_config() {
 # ============================================================================
 # NFQWS Configuration - Weak Obfuscation (Fast Internet)
 # ============================================================================
-# Для условий с слабой блокировкой DPI
 
 --dpi-desync=fake,split
 --dpi-desync-repeats=2
 --dpi-desync-ttl=5
 --dpi-desync-fooling=badsum
-
 EOF
 
     log_success "Конфиг для слабой обфускации применен"
@@ -166,13 +164,11 @@ apply_medium_config() {
 # ============================================================================
 # NFQWS Configuration - Medium Obfuscation (Recommended)
 # ============================================================================
-# Для большинства случаев - оптимальный баланс
 
 --dpi-desync=fake,split2
 --dpi-desync-repeats=4
 --dpi-desync-ttl=3
 --dpi-desync-fooling=badsum
-
 EOF
 
     log_success "Конфиг для средней обфускации применен"
@@ -192,13 +188,11 @@ apply_aggressive_config() {
 # ============================================================================
 # NFQWS Configuration - Aggressive Obfuscation (Maximum Protection)
 # ============================================================================
-# Для агрессивной блокировки DPI провайдера
 
 --dpi-desync=fake,split2,disorder
 --dpi-desync-repeats=8
 --dpi-desync-ttl=5
 --dpi-desync-fooling=badsum
-
 EOF
 
     log_success "Конфиг для агрессивной обфускации применен"
@@ -214,14 +208,14 @@ EOF
 }
 
 edit_config() {
-    log_info "Редактирование конфига NFQWS"
+    log_info "Редактирование конфига NFQWS (для опытных пользователей)"
     echo ""
     echo "  Откроется редактор nano. После редактирования:"
     echo "  - Сохраните: Ctrl+X → Y → Enter"
     echo "  - NFQWS перезагружается автоматически"
     echo ""
 
-    read -p "Открыть редактор? (y/n): " -r
+    read -p "Открыть редактор nano? (y/n): " -r
     if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
         nano "$CONFIG_FILE"
         log_info "Перезагружаю NFQWS..."
@@ -345,7 +339,7 @@ main() {
                 echo "  $0 medium         - применить среднюю обфускацию"
                 echo "  $0 aggressive     - применить агрессивную обфускацию"
                 echo "  $0 restart        - перезагрузить NFQWS"
-                echo "  $0 edit           - отредактировать конфиг"
+                echo "  $0 edit           - отредактировать конфиг (опытным)"
                 exit 1
                 ;;
         esac
