@@ -1,0 +1,25 @@
+# Логи
+*.log
+
+# Резервные копии
+*.backup
+*.bak
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Система
+.DS_Store
+Thumbs.db
+
+# Конфиги с секретами
+.env
+.env.local
+
+# WireGuard конфиги (опционально, если приватные)
+# warp.conf
