@@ -3,7 +3,7 @@
 # ============================================================================
 # Keenetic NFQWS Configuration Manager
 # ============================================================================
-# Управление параметрами обфускации NFQWS для AmneziaWG
+# Управление параметрами обфускации NFQWS для WireGuard handshake
 # ============================================================================
 
 set -e
@@ -56,16 +56,17 @@ check_nfqws() {
 show_menu() {
     echo ""
     echo "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
-    echo "${BLUE}║${NC}              NFQWS Configuration Manager v2.3                  ${BLUE}║${NC}"
+    echo "${BLUE}║${NC}           NFQWS Configuration Manager v2.3                    ${BLUE}║${NC}"
+    echo "${BLUE}║${NC}          WireGuard Handshake Obfuscation                     ${BLUE}║${NC}"
     echo "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo "${GREEN}1.${NC} Просмотр текущей конфигурации"
     echo "${GREEN}2.${NC} Просмотр логов NFQWS"
-    echo "${GREEN}3.${NC} Статус NFQWS сервиса"
+    echo "${GREEN}3.${NC} Статус NFQWS и WireGuard"
     echo ""
-    echo "${GREEN}4.${NC} Слабая блокировка (параметры для быстрого интернета)"
-    echo "${GREEN}5.${NC} Средняя блокировка (рекомендуется)"
-    echo "${GREEN}6.${NC} Агрессивная блокировка (максимальная защита)"
+    echo "${GREEN}4.${NC} Слабая обфускация (быстрый интернет)"
+    echo "${GREEN}5.${NC} Средняя обфускация (рекомендуется)"
+    echo "${GREEN}6.${NC} Агрессивная обфускация (максимальная защита)"
     echo ""
     echo "${GREEN}7.${NC} Ручное редактирование конфига"
     echo "${GREEN}8.${NC} Перезагрузка NFQWS"
@@ -112,7 +113,12 @@ show_status() {
     # Проверка WireGuard интерфейса
     if command -v show &> /dev/null; then
         echo "  WireGuard интерфейсы:"
-        show interface | grep -i wireguard | sed 's/^/    /'
+        WG_IF=$(show interface | grep -i wireguard | head -1)
+        if [ -n "$WG_IF" ]; then
+            show interface | grep -i wireguard | sed 's/^/    /'
+        else
+            echo "    (нет активных WireGuard интерфейсов)"
+        fi
     fi
 
     echo ""
@@ -128,12 +134,13 @@ show_status() {
 }
 
 apply_weak_config() {
-    log_info "Применение конфигурации для слабой блокировки..."
+    log_info "Применение конфигурации для слабой обфускации..."
     
     cat > "$CONFIG_FILE" << 'EOF'
 # ============================================================================
-# NFQWS Configuration - Weak DPI (Fast Internet)
+# NFQWS Configuration - Weak Obfuscation (Fast Internet)
 # ============================================================================
+# Для условий с слабой блокировкой DPI
 
 --dpi-desync=fake,split
 --dpi-desync-repeats=2
@@ -142,23 +149,24 @@ apply_weak_config() {
 
 EOF
 
-    log_success "Конфиг для слабой блокировки применен"
+    log_success "Конфиг для слабой обфускации применен"
     echo ""
     echo "  ${YELLOW}Параметры:${NC}"
     echo "    - Способ: fake, split (минимальная фрагментация)"
-    echo "    - Повторения: 2 (быстро)"
-    echo "    - TTL: 5 (для поддельных пакетов)"
+    echo "    - Повторения: 2 (быстро, минимальная нагрузка)"
+    echo "    - TTL: 5"
     echo ""
     restart_nfqws
 }
 
 apply_medium_config() {
-    log_info "Применение конфигурации для средней блокировки..."
+    log_info "Применение конфигурации для средней обфускации..."
     
     cat > "$CONFIG_FILE" << 'EOF'
 # ============================================================================
-# NFQWS Configuration - Medium DPI (Recommended)
+# NFQWS Configuration - Medium Obfuscation (Recommended)
 # ============================================================================
+# Для большинства случаев - оптимальный баланс
 
 --dpi-desync=fake,split2
 --dpi-desync-repeats=4
@@ -167,7 +175,7 @@ apply_medium_config() {
 
 EOF
 
-    log_success "Конфиг для средней блокировки применен"
+    log_success "Конфиг для средней обфускации применен"
     echo ""
     echo "  ${YELLOW}Параметры:${NC}"
     echo "    - Способ: fake, split2 (двойная фрагментация)"
@@ -178,48 +186,48 @@ EOF
 }
 
 apply_aggressive_config() {
-    log_info "Применение конфигурации для агрессивной блокировки..."
+    log_info "Применение конфигурации для агрессивной обфускации..."
     
     cat > "$CONFIG_FILE" << 'EOF'
 # ============================================================================
-# NFQWS Configuration - Aggressive DPI (Maximum Protection)
+# NFQWS Configuration - Aggressive Obfuscation (Maximum Protection)
 # ============================================================================
+# Для агрессивной блокировки DPI провайдера
 
 --dpi-desync=fake,split2,disorder
 --dpi-desync-repeats=8
 --dpi-desync-ttl=5
 --dpi-desync-fooling=badsum
---dpi-desync-any-protocol
 
 EOF
 
-    log_success "Конфиг для агрессивной блокировки применен"
+    log_success "Конфиг для агрессивной обфускации применен"
     echo ""
     echo "  ${YELLOW}Параметры:${NC}"
     echo "    - Способ: fake, split2, disorder (максимальная обфускация)"
     echo "    - Повторения: 8 (максимально надежно)"
     echo "    - TTL: 5"
-    echo "    - Отслеживание: все протоколы"
     echo ""
-    echo "  ${YELLOW}Внимание: может снизить скорость!${NC}"
+    echo "  ${YELLOW}Внимание: может снизить скорость интернета!${NC}"
     echo ""
     restart_nfqws
 }
 
 edit_config() {
-    log_info "Откройте конфиг для редактирования"
+    log_info "Редактирование конфига NFQWS"
     echo ""
-    echo "  Команда: nano /opt/etc/nfqws/nfqws.conf"
-    echo ""
-    echo "  После сохранения перезагрузите NFQWS:"
-    echo "  /opt/etc/init.d/S51nfqws restart"
+    echo "  Откроется редактор nano. После редактирования:"
+    echo "  - Сохраните: Ctrl+X → Y → Enter"
+    echo "  - NFQWS перезагружается автоматически"
     echo ""
 
-    read -p "Открыть nano? (y/n): " -r
+    read -p "Открыть редактор? (y/n): " -r
     if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
         nano "$CONFIG_FILE"
         log_info "Перезагружаю NFQWS..."
         restart_nfqws
+    else
+        log_warn "Редактирование отменено"
     fi
 }
 
@@ -234,6 +242,7 @@ restart_nfqws() {
             log_success "NFQWS работает"
         else
             log_error "NFQWS не запустился после перезагрузки"
+            log_warn "Попробуйте перезагрузить маршрутизатор: reboot"
         fi
     else
         log_error "Ошибка при перезагрузке NFQWS"
@@ -332,9 +341,9 @@ main() {
                 echo "  $0 status         - показать статус"
                 echo "  $0 config         - показать конфиг"
                 echo "  $0 logs           - показать логи"
-                echo "  $0 weak           - применить слабую конфигурацию"
-                echo "  $0 medium         - применить среднюю конфигурацию"
-                echo "  $0 aggressive     - применить агрессивную конфигурацию"
+                echo "  $0 weak           - применить слабую обфускацию"
+                echo "  $0 medium         - применить среднюю обфускацию"
+                echo "  $0 aggressive     - применить агрессивную обфускацию"
                 echo "  $0 restart        - перезагрузить NFQWS"
                 echo "  $0 edit           - отредактировать конфиг"
                 exit 1

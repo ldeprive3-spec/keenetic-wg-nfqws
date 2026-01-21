@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # ============================================================================
-# Keenetic AmneziaWG + NFQWS Installer
+# Keenetic WireGuard + NFQWS Installer
 # ============================================================================
-# Установка и конфигурация NFQWS для обфускации AmneziaWG пакетов
+# Установка NFQWS для обфускации WireGuard handshake пакетов
 # ============================================================================
 
 set -e
@@ -86,7 +86,7 @@ install_nfqws() {
     log_info "Установка NFQWS..."
 
     # Обновление репозиториев
-    log_info "Обновление опакетов репозиториев..."
+    log_info "Обновление пакетных репозиториев..."
     opkg update
 
     # Установка требуемых зависимостей
@@ -116,15 +116,17 @@ configure_nfqws() {
 
     # Создание каталога конфигурации
     mkdir -p /opt/etc/nfqws
+    mkdir -p /opt/var/log
 
-    # Создание конфига с базовыми параметрами
+    # Создание конфига для WireGuard handshake обфускации
     cat > /opt/etc/nfqws/nfqws.conf << 'EOF'
 # ============================================================================
-# NFQWS DPI Bypass Configuration
+# NFQWS - WireGuard Handshake Obfuscation Configuration
 # ============================================================================
-# Параметры для обфускации AmneziaWG пакетов
+# Обфускация WireGuard handshake пакетов для обхода DPI блокировок
+# Работает с конфигами WARP от warpgen.net
 
-# Включение DPI desync режима:
+# Режимы обфускации:
 # - fake: отправка поддельного пакета
 # - split2: разделение пакета на 2 части
 # - split3: разделение на 3 части
@@ -132,31 +134,26 @@ configure_nfqws() {
 --dpi-desync=fake,split2
 
 # Количество повторений обфускации (1-8)
-# Больше = более надежно, но медленнее
+# 4 = оптимальный баланс между надежностью и скоростью
 --dpi-desync-repeats=4
 
-# TTL для поддельных пакетов (обычно не доходят до сервера)
+# TTL для поддельных пакетов
+# Поддельные пакеты не должны доходить до целевого сервера
 --dpi-desync-ttl=3
 
-# Режим маскировки:
+# Маскировка:
 # - badsum: неправильная контрольная сумма
 # - badseq: неправильный номер последовательности
 --dpi-desync-fooling=badsum
 
-# Отслеживание всех портов (по умолчанию только 443)
-# --dpi-desync-any-protocol
-
-# Логирование (раскомментируйте для отладки)
-# --log-level=debug
-# --log=/opt/var/log/nfqws.log
+# ВАЖНО: Раскомментируйте для обфускации только WireGuard портов
+# Порт по умолчанию в WARP конфигах - 51820 (может отличаться)
+# --dpi-desync-udp=51820
 
 EOF
 
     log_success "Конфиг NFQWS создан: /opt/etc/nfqws/nfqws.conf"
-
-    # Установка прав доступа
     chmod 644 /opt/etc/nfqws/nfqws.conf
-    mkdir -p /opt/var/log
 }
 
 setup_autostart() {
@@ -175,8 +172,8 @@ start_nfqws() {
     log_info "Запуск NFQWS..."
 
     if /opt/etc/init.d/S51nfqws start; then
-        log_success "NFQWS запущен"
         sleep 2
+        log_success "NFQWS запущен"
 
         # Проверка статуса
         if ps | grep -v grep | grep -q nfqws; then
@@ -199,26 +196,28 @@ print_next_steps() {
     echo ""
     echo "${GREEN}1. Следующие шаги:${NC}"
     echo ""
-    echo "   ${YELLOW}a) Генерируйте конфиг AmneziaWG:${NC}"
+    echo "   ${YELLOW}a) Создайте WireGuard конфиг WARP:${NC}"
     echo "      - Откройте: https://warpgen.net"
-    echo "      - Выберите: AmneziaWG"
+    echo "      - Выберите: AmneziaVPN (для AWG 1.5) или WireGuard"
     echo "      - Нажмите: Generate"
-    echo "      - Скопируйте конфиг (сохраните как warp.conf)"
+    echo "      - Скопируйте конфиг"
     echo ""
     echo "   ${YELLOW}b) Загрузите конфиг в Keenetic:${NC}"
-    echo "      - Интернет → Другие подключения → WireGuard"
-    echo "      - Добавить подключение → загрузите warp.conf"
-    echo ""
-    echo "   ${YELLOW}c) Примените обфускацию (замените Wireguard0 на ваш интерфейс):${NC}"
     echo "      ssh admin@192.168.1.1"
-    echo "      interface Wireguard0 wireguard asc 8 50 1000 30 32 1811016522 1196729875 457766807 1765857463"
-    echo "      system configuration save"
+    echo "      nano /opt/etc/wireguard/warp.conf"
+    echo "      # Вставьте конфиг и сохраните"
     echo ""
-    echo "   ${YELLOW}d) Включите WireGuard подключение:${NC}"
+    echo "   ${YELLOW}c) Включите WireGuard:${NC}"
     echo "      - Интернет → Другие подключения → WireGuard"
     echo "      - Переведите в состояние: Включено"
+    echo "      - Через 3-5 сек должна появиться зелёная точка"
     echo ""
-    echo "${GREEN}2. Команды управления NFQWS:${NC}"
+    echo "   ${YELLOW}d) Проверьте подключение:${NC}"
+    echo "      ssh admin@192.168.1.1"
+    echo "      show interface Wireguard0"
+    echo "      # Должен быть Up с увеличивающимся трафиком RX/TX"
+    echo ""
+    echo "${GREEN}2. Управление NFQWS:${NC}"
     echo ""
     echo "   # Статус"
     echo "   /opt/etc/init.d/S51nfqws status"
@@ -235,17 +234,26 @@ print_next_steps() {
     echo "${GREEN}3. Проверка работы:${NC}"
     echo ""
     echo "   # На маршрутизаторе:"
-    echo "   show interface Wireguard0    # Должен быть статус Up"
-    echo "   ps | grep nfqws             # Должен быть процесс NFQWS"
+    echo "   show interface Wireguard0      # Должен быть статус Up"
+    echo "   ps | grep nfqws                # Должен быть процесс NFQWS"
     echo ""
     echo "   # На любом устройстве в сети:"
     echo "   - https://whatismyipaddress.com (должен быть Cloudflare IP)"
     echo "   - https://dnsleaktest.com (должен быть Cloudflare DNS)"
+    echo "   - https://speedtest.net (скорость должна быть близко к норме)"
     echo ""
-    echo "${YELLOW}Для быстрой смены параметров обфускации:${NC}"
+    echo "${YELLOW}4. Если WireGuard отключается:${NC}"
     echo ""
+    echo "   # Проверьте что NFQWS работает:"
+    echo "   ps | grep nfqws"
+    echo ""
+    echo "   # Увеличьте параметры обфускации:"
     echo "   nano /opt/etc/nfqws/nfqws.conf"
+    echo "   # Измените repeats с 4 на 8 и добавьте disorder"
     echo "   /opt/etc/init.d/S51nfqws restart"
+    echo ""
+    echo "   # Получите новый конфиг WARP:"
+    echo "   # warpgen.net регулярно меняет endpoints"
     echo ""
 }
 
@@ -255,7 +263,7 @@ print_next_steps() {
 
 main() {
     echo "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
-    echo "${BLUE}║${NC}     Keenetic AmneziaWG + NFQWS DPI Bypass Installer          ${BLUE}║${NC}"
+    echo "${BLUE}║${NC}    Keenetic WireGuard + NFQWS DPI Bypass Installer            ${BLUE}║${NC}"
     echo "${BLUE}║${NC}                       v2.3 (2026-01-21)                      ${BLUE}║${NC}"
     echo "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
