@@ -53,7 +53,7 @@ check_requirements() {
     log_success "IPv6 установлен"
 
     # Проверка Netfilter
-    if ! lsmod | grep -q "nf_queue"; then
+    if ! lsmod | grep -q "nfnetlink_queue"; then
         log_error "Netfilter модули не установлены. Установите в Управление → Параметры системы"
         exit 1
     fi
