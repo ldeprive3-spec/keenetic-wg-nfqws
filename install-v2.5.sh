@@ -35,15 +35,31 @@ KEENOS_MIN_VERSION="4.0"
 ###############################################################################
 
 detect_keenos_version() {
+    # Метод 1: ndmc show version (как у тебя реально есть)
+    if command -v ndmc >/dev/null 2>&1; then
+        KEENOS_VERSION=$(ndmc -c "show version" 2>/dev/null | awk '/title:/ {print $2; exit}')
+        if [ -n "$KEENOS_VERSION" ]; then
+            log_info "Detected KeenOS version: $KEENOS_VERSION"
+            return 0
+        fi
+    fi
+
+    # Метод 2: старые файлы (на всякий)
     if [ -f /opt/etc/os-version ]; then
         KEENOS_VERSION=$(grep "VERSION=" /opt/etc/os-version | cut -d'=' -f2 | tr -d '"')
     elif [ -f /etc/os-version ]; then
         KEENOS_VERSION=$(grep "VERSION=" /etc/os-version | cut -d'=' -f2 | tr -d '"')
-    else
-        log_error "Cannot detect KeenOS version"
-        return 1
     fi
-    log_info "Detected KeenOS version: $KEENOS_VERSION"
+
+    if [ -n "$KEENOS_VERSION" ]; then
+        log_info "Detected KeenOS version: $KEENOS_VERSION"
+        return 0
+    fi
+
+    # Если вообще не поняли версию — НЕ роняем установку
+    log_warn "Cannot detect KeenOS version (continuing installation anyway)"
+    KEENOS_VERSION="unknown"
+    return 0
 }
 
 detect_entware() {
