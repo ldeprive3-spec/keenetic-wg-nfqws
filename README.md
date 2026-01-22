@@ -1,5 +1,5 @@
 # Одна команда установки:
-curl -fsSL https://raw.githubusercontent.com/ldeprive3-spec/keenetic-wg-nfqws/main/install-v2.5.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ldeprive3-spec/keenetic-wg-nfqws/main/install.sh | sh
 
 # Проверка:
 ps | grep nfqws
