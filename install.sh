@@ -60,11 +60,11 @@ check_requirements() {
     log_success "Netfilter модули установлены"
 
     # Проверка WireGuard
-    if ! lsmod | grep -q wireguard; then
-        log_error "WireGuard VPN не установлен. Установите в Управление → Параметры системы"
-        exit 1
-    fi
-    log_success "WireGuard VPN установлен"
+    #if ! lsmod | grep -q wireguard; then
+    #    log_error "WireGuard VPN не установлен. Установите в Управление → Параметры системы"
+    #    exit 1
+    #fi
+    #log_success "WireGuard VPN установлен"
 
     # Проверка Entware
     if ! command -v opkg &> /dev/null; then
