@@ -8,7 +8,7 @@
 # CRITICAL FIXES v2.5:
 # - Fix: Netfilter check via /proc/modules (nfnetlink_queue, not nf_queue)
 # - Fix: WireGuard check via /proc/modules (working on all KeenOS versions)
-# - Fix: NFQWS runs from root (no --user parameter, eliminates username error)
+# - Fix: Patch S51nfqws to remove --user parameter (eliminates username error)
 ###############################################################################
 
 set -e
@@ -157,7 +157,7 @@ install_dependencies() {
     log_info "Installing dependencies..."
     
     # Core packages
-    local packages="nano nfqws-keenetic-web nping curl"
+    local packages="nano nfqws-keenetic-web nping curl sed"
     
     for pkg in $packages; do
         log_info "Installing: $pkg"
@@ -308,6 +308,50 @@ create_ipset_list() {
     chmod 644 "$INSTALL_DIR/ipset.list"
     chmod 644 "$INSTALL_DIR/ipset_exclude.list"
     log_success "IP-set lists created"
+}
+
+###############################################################################
+# PATCH S51nfqws INIT SCRIPT (FIX #3 - CRITICAL)
+###############################################################################
+
+patch_s51nfqws() {
+    log_info "Patching S51nfqws to remove --user parameter..."
+    
+    if [ ! -f /opt/etc/init.d/S51nfqws ]; then
+        log_error "S51nfqws script not found!"
+        return 1
+    fi
+    
+    # Backup original
+    cp /opt/etc/init.d/S51nfqws /opt/etc/init.d/S51nfqws.bak 2>/dev/null || true
+    
+    # Check if already patched
+    if grep -q "# PATCHED: --user removed" /opt/etc/init.d/S51nfqws; then
+        log_success "S51nfqws already patched"
+        return 0
+    fi
+    
+    # FIX #3: Remove --user from _startup_args() function
+    # Original line: local args="--user=$USER --qnum=$NFQUEUE_NUM"
+    # Replace with: local args="--qnum=$NFQUEUE_NUM"
+    
+    sed -i 's/^  local args="--user=$USER --qnum=/  local args="--qnum=/' /opt/etc/init.d/S51nfqws
+    
+    # Add comment to mark patch
+    sed -i '201i\  # PATCHED: --user removed (runs from root automatically)' /opt/etc/init.d/S51nfqws
+    
+    log_success "S51nfqws patched (--user parameter removed)"
+    
+    # Verify patch
+    if grep -q "local args=\"--qnum=" /opt/etc/init.d/S51nfqws && ! grep -q "local args=\"--user=\$USER" /opt/etc/init.d/S51nfqws; then
+        log_success "Patch verified successfully"
+        return 0
+    else
+        log_error "Patch verification failed!"
+        log_warn "Restoring backup..."
+        cp /opt/etc/init.d/S51nfqws.bak /opt/etc/init.d/S51nfqws 2>/dev/null || true
+        return 1
+    fi
 }
 
 ###############################################################################
@@ -564,6 +608,10 @@ main() {
     create_ipset_list
     
     echo ""
+    log_info "=== PATCHING S51nfqws (FIX #3) ==="
+    patch_s51nfqws || log_warn "S51nfqws patch issue (continue)"
+    
+    echo ""
     log_info "=== WIREGUARD RESTORE DAEMON ==="
     setup_wireguard_restore
     
@@ -589,6 +637,7 @@ main() {
     log_success "Exclude list: $INSTALL_DIR/exclude.list"
     log_success "WireGuard restore: /opt/etc/init.d/S99wg-restore"
     log_success "Installation log: $LOG_DIR/install.log"
+    log_success "S51nfqws backup: /opt/etc/init.d/S51nfqws.bak"
     
     echo ""
     log_info "VERIFICATION:"
@@ -604,9 +653,9 @@ main() {
     echo ""
     
     log_info "CRITICAL FIXES IN v2.5:"
-    echo "  ✓ Netfilter: /proc/modules check (nfnetlink_queue)"
-    echo "  ✓ WireGuard: /proc/modules check (no modprobe/lsmod)"
-    echo "  ✓ NFQWS: Runs from root (no --user parameter error)"
+    echo "  ✓ Fix #1: Netfilter check via /proc/modules (nfnetlink_queue)"
+    echo "  ✓ Fix #2: WireGuard check via /proc/modules (no modprobe/lsmod)"
+    echo "  ✓ Fix #3: S51nfqws patched (--user parameter removed, runs from root)"
     echo ""
     
     log_info "NEXT STEPS:"
