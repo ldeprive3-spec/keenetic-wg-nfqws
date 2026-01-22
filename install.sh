@@ -60,7 +60,7 @@ check_requirements() {
     log_success "Netfilter модули установлены"
 
     # Проверка WireGuard
-    if ! modprobe -n wireguard &>/dev/null; then
+    if ! lsmod | grep -q wireguard; then
         log_error "WireGuard VPN не установлен. Установите в Управление → Параметры системы"
         exit 1
     fi
